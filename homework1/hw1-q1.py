@@ -47,14 +47,17 @@ class LinearModel(object):
 
 
 class Perceptron(LinearModel):
-    def update_weight(self, x_i, y_i, **kwargs):
+    def update_weight(self, x_i, y_i, **kwargs):  
         """
         x_i (n_features): a single training example
         y_i (scalar): the gold label for that example
         other arguments are ignored
         """
-        # Q1.1a
-        raise NotImplementedError
+        y_hat = np.argmax((self.W).dot(x_i))
+        if y_hat != y_i:
+            self.W[y_i, :] += kwargs.get("learning_rate") * x_i
+            self.W[y_hat, :] -= kwargs.get("learning_rate") * x_i
+
 
 
 class LogisticRegression(LinearModel):
@@ -64,17 +67,29 @@ class LogisticRegression(LinearModel):
         y_i: the gold label for that example
         learning_rate (float): keep it at the default value for your plots
         """
-        # Q1.1b
-        raise NotImplementedError
+        label_scores = (self.W).dot(x_i)[:, None]
+        y_one_hot = np.zeros((np.size(self.W, 0), 1))
+        y_one_hot[y_i] = 1
+        label_probabilities = np.exp(label_scores) / np.sum(np.exp(label_scores))
+        self.W += learning_rate * (y_one_hot - label_probabilities) * x_i[None, :]
+
 
 
 class MLP(object):
-    # Q3.2b. This MLP skeleton code allows the MLP to be used in place of the
+    # Q1.2b. This MLP skeleton code allows the MLP to be used in place of the
     # linear models with no changes to the training loop or evaluation code
     # in main().
     def __init__(self, n_classes, n_features, hidden_size):
         # Initialize an MLP with a single hidden layer.
-        raise NotImplementedError
+        self.units = [785, 200, 10]
+        # Initialize all weights and biases randomly.
+        W1 = np.random.normal(.1, .1**2, (self.units[1], self.units[0]))
+        b1 = np.zeros((self.units[1], 1))
+        W2 = np.random.normal(.1, .1**2, (self.units[2], self.units[1]))
+        b2 = np.zeros((self.units[2], 1))
+
+        self.weights = [W1, W2]
+        self.biases = [b1, b2]
 
     def predict(self, X):
         # Compute the forward pass of the network. At prediction time, there is
@@ -93,8 +108,64 @@ class MLP(object):
         n_possible = y.shape[0]
         return n_correct / n_possible
 
+    def forward(self, x, weights, biases):
+        num_layers = len(weights)
+        hiddens = []
+        for i in range(num_layers):
+            h = x if i == 0 else hiddens[i-1]
+            z = weights[i].dot(h) + biases[i]
+            if i < num_layers-1:  # Assume the output layer has no activation.
+                hiddens.append(np.maximum(0,z)) # relu activation function
+        output = z
+        return output, hiddens
+
+    def backward(self, x, y, output, hiddens, weights, loss_function='cross_entropy'):
+        num_layers = len(weights)
+        z = output
+        if loss_function == 'squared':
+            grad_z = z - y  # Grad of loss wrt last z.
+        elif loss_function == 'cross_entropy':
+            probs = compute_label_probabilities(output)
+            grad_z = probs - y  # Grad of loss wrt last z.
+        grad_weights = []
+        grad_biases = []
+        for i in range(num_layers-1, -1, -1):
+            h = x if i == 0 else hiddens[i-1]
+            grad_weights.append(grad_z[:, None].dot(h[:, None].T))
+            grad_biases.append(grad_z)
+
+            grad_h = weights[i].T.dot(grad_z)
+
+            assert(g == np.tanh)
+            grad_z = grad_h * (1-h**2)   # Grad of loss wrt z3.
+
+        grad_weights.reverse()
+        grad_biases.reverse()
+        return grad_weights, grad_biases
+
+    def compute_loss(self, output, y):
+        # softmax transformation.
+        probs = np.exp(output) / np.sum(np.exp(output))
+        loss = -y.dot(np.log(probs))
+        return loss 
+
+    def update_parameters(self, grad_weights, grad_biases, eta):
+        num_layers = len(self.weights)
+        for i in range(num_layers):
+            self.weights[i] -= eta*grad_weights[i]
+            self.biases[i] -= eta*grad_biases[i]
+
     def train_epoch(self, X, y, learning_rate=0.001):
-        raise NotImplementedError
+        total_loss = 0
+        for x_i, y_i in zip(X, y):
+            output, hiddens = self.forward(x_i, self.weights, self.biases)
+            loss = self.compute_loss(output, y_i, loss_function='cross_entropy')
+            total_loss += loss
+            grad_weights, grad_biases = backward(x_i, y_i, output, hiddens, self.weights, loss_function='cross_entropy')
+            self.update_parameters(grad_weights, grad_biases, eta=learning_rate)
+        print("Total loss: %f" % total_loss)
+        return loss
+        
 
 
 def plot(epochs, valid_accs, test_accs):
