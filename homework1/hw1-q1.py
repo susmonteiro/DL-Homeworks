@@ -81,21 +81,33 @@ class MLP(object):
     # in main().
     def __init__(self, n_classes, n_features, hidden_size):
         # Initialize an MLP with a single hidden layer.
-        self.units = [785, 200, 10]
+        self.units = [n_features, hidden_size, n_classes]
         # Initialize all weights and biases randomly.
+        # TODO check bias (should be squared?)
+        # TODO remove all TODOs
+        # TODO remove all prints
         W1 = np.random.normal(.1, .1**2, (self.units[1], self.units[0]))
-        b1 = np.zeros((self.units[1], 1))
+        b1 = np.zeros(self.units[1])
         W2 = np.random.normal(.1, .1**2, (self.units[2], self.units[1]))
-        b2 = np.zeros((self.units[2], 1))
+        b2 = np.zeros(self.units[2])
 
         self.weights = [W1, W2]
         self.biases = [b1, b2]
+        self.num_labels = n_classes
+
+
 
     def predict(self, X):
         # Compute the forward pass of the network. At prediction time, there is
         # no need to save the values of hidden nodes, whereas this is required
         # at training time.
-        raise NotImplementedError
+        # The most probable label is also the label with the largest logit.
+        # TODO delete me
+        # y_hat = np.zeros_like(X)
+        # y_hat[np.argmax(X)] = 1
+        # return y_hat
+        # TODO check this
+        return np.argmax(X)
 
     def evaluate(self, X, y):
         """
@@ -116,17 +128,18 @@ class MLP(object):
             z = weights[i].dot(h) + biases[i]
             if i < num_layers-1:  # Assume the output layer has no activation.
                 hiddens.append(np.maximum(0,z)) # relu activation function
+
         output = z
         return output, hiddens
 
-    def backward(self, x, y, output, hiddens, weights, loss_function='cross_entropy'):
+    def backward(self, x, y, output, hiddens, weights):
         num_layers = len(weights)
         z = output
-        if loss_function == 'squared':
-            grad_z = z - y  # Grad of loss wrt last z.
-        elif loss_function == 'cross_entropy':
-            probs = compute_label_probabilities(output)
-            grad_z = probs - y  # Grad of loss wrt last z.
+
+        # cross-entropy function
+        probs = self.compute_label_probabilities(output)
+        grad_z = probs - y  # Grad of loss wrt last z.
+
         grad_weights = []
         grad_biases = []
         for i in range(num_layers-1, -1, -1):
@@ -135,9 +148,12 @@ class MLP(object):
             grad_biases.append(grad_z)
 
             grad_h = weights[i].T.dot(grad_z)
+            grad_z = grad_h * (h > 0)
 
-            assert(g == np.tanh)
-            grad_z = grad_h * (1-h**2)   # Grad of loss wrt z3.
+            # TODO delete this
+            # print("Grad H: ", grad_h.shape)
+            # print("Z: ", z.shape)
+            # grad_z = grad_h if z > 0 else 0   # Grad of loss wrt z3.
 
         grad_weights.reverse()
         grad_biases.reverse()
@@ -145,9 +161,18 @@ class MLP(object):
 
     def compute_loss(self, output, y):
         # softmax transformation.
-        probs = np.exp(output) / np.sum(np.exp(output))
+        probs = self.compute_label_probabilities(output)
         loss = -y.dot(np.log(probs))
         return loss 
+
+    def compute_label_probabilities(self, output):
+        # softmax transformation.
+        # TODO first shift the values of f so that the highest number is 0:
+        # uncomment line below
+        # f -= np.max(f) # f becomes [-666, -333, 0]
+        output -= np.max(output)
+        probs = np.exp(output) / np.sum(np.exp(output))
+        return probs
 
     def update_parameters(self, grad_weights, grad_biases, eta):
         num_layers = len(self.weights)
@@ -155,13 +180,20 @@ class MLP(object):
             self.weights[i] -= eta*grad_weights[i]
             self.biases[i] -= eta*grad_biases[i]
 
+    def create_one_hot_vector(self, y):
+        one_hot = np.zeros((np.size(y, 0), self.num_labels))
+        for i in range(np.size(y, 0)):
+            one_hot[i, y[i]] = 1
+        return one_hot
+
     def train_epoch(self, X, y, learning_rate=0.001):
         total_loss = 0
+        y = self.create_one_hot_vector(y)
         for x_i, y_i in zip(X, y):
             output, hiddens = self.forward(x_i, self.weights, self.biases)
-            loss = self.compute_loss(output, y_i, loss_function='cross_entropy')
+            loss = self.compute_loss(output, y_i)
             total_loss += loss
-            grad_weights, grad_biases = backward(x_i, y_i, output, hiddens, self.weights, loss_function='cross_entropy')
+            grad_weights, grad_biases = self.backward(x_i, y_i, output, hiddens, self.weights)
             self.update_parameters(grad_weights, grad_biases, eta=learning_rate)
         print("Total loss: %f" % total_loss)
         return loss
@@ -214,7 +246,7 @@ def main():
     elif opt.model == 'logistic_regression':
         model = LogisticRegression(n_classes, n_feats)
     else:
-        model = MLP(n_classes, n_feats, opt.hidden_size, opt.layers)
+        model = MLP(n_classes, n_feats, opt.hidden_size)
     epochs = np.arange(1, opt.epochs + 1)
     valid_accs = []
     test_accs = []
