@@ -21,3 +21,4 @@ hw1-q2.py
 # Questions
 
 - Question Q1.1a) -> remove learning rate?
+- Question Q2.3) -> dropout before or after activation function?
