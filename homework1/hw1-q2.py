@@ -28,7 +28,7 @@ class LogisticRegression(nn.Module):
         https://pytorch.org/docs/stable/nn.html
         """
         super(LogisticRegression, self).__init__()
-        self.layer = nn.Linear(n_features, n_classes)
+        self.layers = nn.Linear(n_features, n_classes)
         self.activation = nn.Sigmoid()
 
     def forward(self, x, **kwargs):
@@ -67,7 +67,30 @@ class FeedforwardNetwork(nn.Module):
         attributes that each FeedforwardNetwork instance has. Note that nn
         includes modules for several activation functions and dropout as well.
         """
-        super().__init__()
+        super(FeedforwardNetwork, self).__init__()
+        self.t1 = nn.Linear(n_features, hidden_size) 
+
+        if activation_type == 'tanh':
+            self.activation = nn.Tanh()
+        elif activation_type == 'relu':
+            self.activation = nn.ReLU()
+
+        self.dropout = nn.Dropout(p=dropout)
+
+        if (layers == 1):
+            self.t2 = nn.Linear(hidden_size, n_classes)
+        elif (layers == 2):
+            self.t2 = nn.Linear(hidden_size, hidden_size)
+            self.t3 = nn.Linear(hidden_size, n_classes)
+        elif (layers == 3):
+            self.t2 = nn.Linear(hidden_size, hidden_size)
+            self.t3 = nn.Linear(hidden_size, hidden_size)
+            self.t4 = nn.Linear(hidden_size, n_classes)
+        else:
+            raise ValueError("Invalid number of layers")
+
+
+            
         # Implement me!
 
     def forward(self, x, **kwargs):
@@ -78,8 +101,11 @@ class FeedforwardNetwork(nn.Module):
         the output logits from x. This will include using various hidden
         layers, pointwise nonlinear functions, and dropout.
         """
-        raise NotImplementedError
-
+        output = self.t1(x) 
+        output = self.dropout(output)
+        output = self.activation(output)
+        output = self.t2(output)
+        return output
 
 def train_batch(X, y, model, optimizer, criterion, **kwargs):
     """
@@ -143,11 +169,11 @@ def main():
     parser.add_argument('-epochs', default=20, type=int,
                         help="""Number of epochs to train for. You should not
                         need to change this value for your plots.""")
-    parser.add_argument('-batch_size', default=1, type=int,
+    parser.add_argument('-batch_size', default=16, type=int,
                         help="Size of training batch.")
     parser.add_argument('-learning_rate', type=float, default=0.01)
     parser.add_argument('-l2_decay', type=float, default=0)
-    parser.add_argument('-hidden_sizes', type=int, default=100)
+    parser.add_argument('-hidden_size', type=int, default=100)
     parser.add_argument('-layers', type=int, default=1)
     parser.add_argument('-dropout', type=float, default=0.3)
     parser.add_argument('-activation',
