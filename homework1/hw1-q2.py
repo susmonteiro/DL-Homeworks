@@ -11,6 +11,7 @@ from matplotlib import pyplot as plt
 
 import utils
 
+# DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 # Q2.1
 class LogisticRegression(nn.Module):
@@ -26,9 +27,9 @@ class LogisticRegression(nn.Module):
         pytorch to make weights and biases, have a look at
         https://pytorch.org/docs/stable/nn.html
         """
-        super().__init__()
-        # In a pytorch module, the declarations of layers needs to come after
-        # the super __init__ line, otherwise the magic doesn't work.
+        super(LogisticRegression, self).__init__()
+        self.layer = nn.Linear(n_features, n_classes)
+        self.activation = nn.Sigmoid()
 
     def forward(self, x, **kwargs):
         """
@@ -44,7 +45,9 @@ class LogisticRegression(nn.Module):
         forward pass -- this is enough for it to figure out how to do the
         backward pass.
         """
-        raise NotImplementedError
+        output = self.layer(x)
+        output = self.activation(output)
+        return output
 
 
 # Q2.2
@@ -96,7 +99,12 @@ def train_batch(X, y, model, optimizer, criterion, **kwargs):
     This function should return the loss (tip: call loss.item()) to get the
     loss as a numerical value that is not part of the computation graph.
     """
-    raise NotImplementedError
+    optimizer.zero_grad()
+    y_hat = model(X)
+    loss = criterion(y_hat, y)
+    loss.backward()
+    optimizer.step()
+    return loss.item()
 
 
 def predict(model, X):
@@ -173,7 +181,6 @@ def main():
             opt.activation,
             opt.dropout
         )
-
     # get an optimizer
     optims = {"adam": torch.optim.Adam, "sgd": torch.optim.SGD}
 
@@ -193,7 +200,9 @@ def main():
     train_losses = []
     for ii in epochs:
         print('Training epoch {}'.format(ii))
+        model.train()
         for X_batch, y_batch in train_dataloader:
+            X_batch.requires_grad = True
             loss = train_batch(
                 X_batch, y_batch, model, optimizer, criterion)
             train_losses.append(loss)

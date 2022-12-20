@@ -102,12 +102,13 @@ class MLP(object):
         # no need to save the values of hidden nodes, whereas this is required
         # at training time.
         # The most probable label is also the label with the largest logit.
-        # TODO delete me
-        # y_hat = np.zeros_like(X)
-        # y_hat[np.argmax(X)] = 1
-        # return y_hat
-        # TODO check this
-        return np.argmax(X)
+        predicted_labels = []
+        for x in X:
+            output, _ = self.forward(x)
+            y_hat = np.argmax(output)   # label
+            predicted_labels.append(y_hat)
+        predicted_labels = np.array(predicted_labels)
+        return predicted_labels
 
     def evaluate(self, X, y):
         """
@@ -120,20 +121,20 @@ class MLP(object):
         n_possible = y.shape[0]
         return n_correct / n_possible
 
-    def forward(self, x, weights, biases):
-        num_layers = len(weights)
+    def forward(self, x):
+        num_layers = len(self.weights)
         hiddens = []
         for i in range(num_layers):
             h = x if i == 0 else hiddens[i-1]
-            z = weights[i].dot(h) + biases[i]
+            z = self.weights[i].dot(h) + self.biases[i]
             if i < num_layers-1:  # Assume the output layer has no activation.
                 hiddens.append(np.maximum(0,z)) # relu activation function
 
         output = z
         return output, hiddens
 
-    def backward(self, x, y, output, hiddens, weights):
-        num_layers = len(weights)
+    def backward(self, x, y, output, hiddens):
+        num_layers = len(self.weights)
         z = output
 
         # cross-entropy function
@@ -147,7 +148,7 @@ class MLP(object):
             grad_weights.append(grad_z[:, None].dot(h[:, None].T))
             grad_biases.append(grad_z)
 
-            grad_h = weights[i].T.dot(grad_z)
+            grad_h = self.weights[i].T.dot(grad_z)
             grad_z = grad_h * (h > 0)
 
             # TODO delete this
@@ -190,10 +191,10 @@ class MLP(object):
         total_loss = 0
         y = self.create_one_hot_vector(y)
         for x_i, y_i in zip(X, y):
-            output, hiddens = self.forward(x_i, self.weights, self.biases)
+            output, hiddens = self.forward(x_i)
             loss = self.compute_loss(output, y_i)
             total_loss += loss
-            grad_weights, grad_biases = self.backward(x_i, y_i, output, hiddens, self.weights)
+            grad_weights, grad_biases = self.backward(x_i, y_i, output, hiddens)
             self.update_parameters(grad_weights, grad_biases, eta=learning_rate)
         print("Total loss: %f" % total_loss)
         return loss
