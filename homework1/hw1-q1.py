@@ -55,8 +55,8 @@ class Perceptron(LinearModel):
         """
         y_hat = np.argmax((self.W).dot(x_i))
         if y_hat != y_i:
-            self.W[y_i, :] += kwargs.get("learning_rate") * x_i
-            self.W[y_hat, :] -= kwargs.get("learning_rate") * x_i
+            self.W[y_i, :] += x_i
+            self.W[y_hat, :] -= x_i
 
 
 
@@ -86,9 +86,9 @@ class MLP(object):
         # TODO check bias (should be squared?)
         # TODO remove all TODOs
         # TODO remove all prints
-        W1 = np.random.normal(.1, .1**2, (self.units[1], self.units[0]))
+        W1 = np.random.normal(.1, .1, (self.units[1], self.units[0]))
         b1 = np.zeros(self.units[1])
-        W2 = np.random.normal(.1, .1**2, (self.units[2], self.units[1]))
+        W2 = np.random.normal(.1, .1, (self.units[2], self.units[1]))
         b2 = np.zeros(self.units[2])
 
         self.weights = [W1, W2]
@@ -150,7 +150,6 @@ class MLP(object):
 
             grad_h = self.weights[i].T.dot(grad_z)
             grad_z = grad_h * (h > 0)
-
             # TODO delete this
             # print("Grad H: ", grad_h.shape)
             # print("Z: ", z.shape)

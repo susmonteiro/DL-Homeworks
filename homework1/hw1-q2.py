@@ -68,9 +68,9 @@ class FeedforwardNetwork(nn.Module):
         includes modules for several activation functions and dropout as well.
         """
         super(FeedforwardNetwork, self).__init__()
-        self.t = []
-        self.t.append(nn.Linear(n_features, hidden_size))
-
+        self.linears = nn.ModuleList()
+        self.linears.append(nn.Linear(n_features, hidden_size))
+    
         if activation_type == 'tanh':
             self.activation = nn.Tanh()
         elif activation_type == 'relu':
@@ -79,11 +79,11 @@ class FeedforwardNetwork(nn.Module):
         self.dropout = nn.Dropout(p=dropout)
 
         if (layers > 1):
-            self.t.append(nn.Linear(hidden_size, hidden_size))
+            self.linears.append(nn.Linear(hidden_size, hidden_size))
         if (layers > 2):
-            self.t.append(nn.Linear(hidden_size, hidden_size))
-        self.t.append(nn.Linear(hidden_size, n_classes))
-            
+            self.linears.append(nn.Linear(hidden_size, hidden_size))
+        self.linears.append(nn.Linear(hidden_size, n_classes))
+
         # Implement me!
 
     def forward(self, x, **kwargs):
@@ -94,11 +94,12 @@ class FeedforwardNetwork(nn.Module):
         the output logits from x. This will include using various hidden
         layers, pointwise nonlinear functions, and dropout.
         """
-        for t_x in self.t[:-1]:
-            output = t_x(x) 
-            output = self.dropout(output)
+        output = x
+        for l in self.linears[:-1]:
+            output = l(output) 
             output = self.activation(output)
-        output = self.t[-1](output)
+            output = self.dropout(output)
+        output = self.linears[-1](output)
         return output
 
 def train_batch(X, y, model, optimizer, criterion, **kwargs):
