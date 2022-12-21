@@ -100,6 +100,8 @@ class FeedforwardNetwork(nn.Module):
             output = self.activation(output)
             output = self.dropout(output)
         output = self.linears[-1](output)
+        output = self.activation(output)
+
         return output
 
 def train_batch(X, y, model, optimizer, criterion, **kwargs):
