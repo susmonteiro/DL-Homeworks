@@ -130,16 +130,14 @@ class MLP(object):
             if i < num_layers-1:  # Assume the output layer has no activation.
                 hiddens.append(np.maximum(0,z)) # relu activation function
 
-        output = z
+        output = self.softmax(z)
         return output, hiddens
 
     def backward(self, x, y, output, hiddens):
         num_layers = len(self.weights)
-        z = output
 
         # cross-entropy function
-        probs = self.compute_label_probabilities(output)
-        grad_z = probs - y  # Grad of loss wrt last z.
+        grad_z = output - y  # Grad of loss wrt last z.
 
         grad_weights = []
         grad_biases = []
@@ -160,12 +158,10 @@ class MLP(object):
         return grad_weights, grad_biases
 
     def compute_loss(self, output, y):
-        # softmax transformation.
-        probs = self.compute_label_probabilities(output)
-        loss = -y.dot(np.log(probs))
+        loss = -y.dot(np.log(output))
         return loss 
 
-    def compute_label_probabilities(self, output):
+    def softmax(self, output):
         # softmax transformation.
         # TODO first shift the values of f so that the highest number is 0:
         # uncomment line below
