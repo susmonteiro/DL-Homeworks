@@ -28,7 +28,7 @@ class LogisticRegression(nn.Module):
         https://pytorch.org/docs/stable/nn.html
         """
         super(LogisticRegression, self).__init__()
-        self.layers = nn.Linear(n_features, n_classes)
+        self.layer = nn.Linear(n_features, n_classes)
         self.activation = nn.Sigmoid()
 
     def forward(self, x, **kwargs):
@@ -100,7 +100,6 @@ class FeedforwardNetwork(nn.Module):
             output = self.activation(output)
             output = self.dropout(output)
         output = self.linears[-1](output)
-        output = self.activation(output)
 
         return output
 
