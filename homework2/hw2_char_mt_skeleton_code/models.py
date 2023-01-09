@@ -117,11 +117,14 @@ class Encoder(nn.Module):
         # Unpack the packed sequence (after passing them to the LSTM)  
         enc_output, _ = unpack(packed_output, batch_first=True)
 
-        hidden_n = self._reshape_hidden(final_hidden)
+        final_hidden = self._reshape_hidden(final_hidden)
 
         # enc_output: (batch_size, max_src_len, hidden_size)
         # final_hidden: tuple with 2 tensors
         # each tensor is (num_layers * num_directions, batch_size, hidden_size)
+        print(enc_output.shape)
+        print(final_hidden[0].shape)
+        print(final_hidden[1].shape)
         return enc_output, final_hidden
 
     def _merge_tensor(self, state_tensor):
@@ -213,7 +216,7 @@ class Decoder(nn.Module):
             # Generate the input to the LSTM
             if t != 0:
                 lstm_input = self.embedding(output.argmax(dim=-1))
-            lstm_input = torch.cat((lstm_input.unsqueeze(0), dec_state[0]), dim=1)
+            lstm_input = torch.cat((lstm_input, dec_state[0]), dim=1)
 
             # Pass the input to the LSTM and obtain the output and new hidden state and cell state
             output, dec_state = self.lstm(lstm_input.unsqueeze(0), dec_state)
