@@ -106,11 +106,11 @@ class Encoder(nn.Module):
         embedded = self.embedding(src)
 
         # TODO dropout here?
-        enc_output = self.dropout(embedded)
+        embedded_dropout = self.dropout(embedded)
         # Pack the padded sequences (before passing them to the LSTM)
         # lengths, indices = lengths.sort(descending=True)
         # src = src[indices]
-        packed_src = pack(embedded, lengths, batch_first=True, enforce_sorted=False)
+        packed_src = pack(embedded_dropout, lengths, batch_first=True, enforce_sorted=False)
 
         packed_output, final_hidden = self.lstm(packed_src)
 
@@ -196,8 +196,9 @@ class Decoder(nn.Module):
 
         # Embed the target sequence
         embedded = self.embedding(tgt)
+        embedded_dropout = self.dropout(embedded)
 
-        # Initialize the hidden state and cell state of the LSTM with the final
+            # Initialize the hidden state and cell state of the LSTM with the final
         # hidden state and cell state of the encoder
         hidden, cell = dec_state
         dec_state = (hidden[-1], cell[-1])
@@ -209,7 +210,7 @@ class Decoder(nn.Module):
 
         # Initialize the outputs tensor and the LSTM input
         outputs = torch.zeros((tgt.shape[0], tgt.shape[1], self.hidden_size))
-        lstm_input = embedded[:, 0, :]
+        lstm_input = embedded_dropout[:, 0, :]
 
         # Iterate over the time steps of the target sequence
         for t in range(tgt.shape[1]):
