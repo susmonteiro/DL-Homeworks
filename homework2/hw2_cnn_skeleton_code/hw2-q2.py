@@ -17,7 +17,7 @@ import utils
 
 class CNN(nn.Module):
     
-    def __init__(self, dropout_prob):
+    def __init__(self, dropout_prob = 0.3):
         """
         The __init__ should be used to declare what kind of layers and other
         parameters the module has. For example, a CNN module has convolution,
@@ -26,12 +26,13 @@ class CNN(nn.Module):
         https://pytorch.org/docs/stable/nn.html
         """
         super(CNN, self).__init__()
-        self.conv1 = nn.Conv2d(1, 8, kernel_size = 5)
+        self.conv1 = nn.Conv2d(1, 8, kernel_size = 5, stride = 1)
         self.conv2 = nn.Conv2d(8, 16, kernel_size = 3)
+        self.conv2_drop = dropout_prob
+        self.fc1 = nn.Linear(200, 600)     
+        self.fc2 = nn.Linear(600, 120)
+        self.fc3 = nn.Linear(120, 10)
 
-        
-        # Implement me!
-        
     def forward(self, x):
         """
         x (batch_size x n_channels x height x width): a batch of training 
@@ -48,7 +49,30 @@ class CNN(nn.Module):
         forward pass -- this is enough for it to figure out how to do the
         backward pass.
         """
-        raise NotImplementedError
+        print(x.shape)
+        # Batch size = 8, images 28x28 =>
+        #     x.shape = [8, 1, 28, 28]
+        # Convolution with 5x5 filter without padding and 8 channels =>
+        #     x.shape = [8, 8, 24, 24] since 24 = 28 - 5 + 1
+        # Max pooling with stride of 2 =>
+        #     x.shape = [8, 8, 12, 12]
+        x = nn.MaxPool2d(F.relu(self.conv1(x)), 2)
+        # Convolution with 5x5 filter without padding and 8 channels =>
+        #     x.shape = [8, 16, 10, 10] since 10 = 12 - 3 + 1
+        # Max pooling with stride of 2 =>
+        #     x.shape = [64, 8, 5, 5]
+        x = F.MaxPool2d(F.relu(self.conv2(x)), 2)
+
+        x = x.view(-1, 200)             #still have to change num_output_features
+        # Reshape =>
+        #     x.shape = [64, 320]   
+        x = self.conv2_drop(F.relu(self.fc1(x)))
+        #x = F.dropout(x, training=self.training)
+        x = F.relu(self.fc2(x))
+        x = F.dropout(x, training=self.training)
+        x = self.fc2(x)
+        x = F.log_softmax(x, dim=1)
+        raise x
 
 def train_batch(X, y, model, optimizer, criterion, **kwargs):
     """
@@ -68,7 +92,12 @@ def train_batch(X, y, model, optimizer, criterion, **kwargs):
     This function should return the loss (tip: call loss.item()) to get the
     loss as a numerical value that is not part of the computation graph.
     """
-    raise NotImplementedError
+    optimizer.zero_grad()
+    y_hat = model(X)
+    loss = criterion(y_hat, y)
+    loss.backward()
+    optimizer.step()
+    return loss.item()
 
 def predict(model, X):
     """X (n_examples x n_features)"""

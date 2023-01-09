@@ -29,7 +29,6 @@ class LogisticRegression(nn.Module):
         """
         super(LogisticRegression, self).__init__()
         self.layer = nn.Linear(n_features, n_classes)
-        self.activation = nn.Sigmoid()
 
     def forward(self, x, **kwargs):
         """
@@ -46,7 +45,6 @@ class LogisticRegression(nn.Module):
         backward pass.
         """
         output = self.layer(x)
-        output = self.activation(output)
         return output
 
 
