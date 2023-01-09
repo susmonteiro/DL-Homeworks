@@ -101,23 +101,24 @@ class Encoder(nn.Module):
     ):
         # src: (batch_size, max_src_len)
         # lengths: (batch_size)
-        #############################################
-        # TODO: Implement the forward pass of the encoder
-        # Hints:
-        # - Use torch.nn.utils.rnn.pack_padded_sequence to pack the padded sequences
-        #   (before passing them to the LSTM)
-        # - Use torch.nn.utils.rnn.pad_packed_sequence to unpack the packed sequences
-        #   (after passing them to the LSTM)
-        #############################################
-        raise NotImplementedError
-        #############################################
-        # END OF YOUR CODE
-        #############################################
+
+        # Embed the source sequence
+        embedded = self.embedding(src)
+
+        # Pack the padded sequences (before passing them to the LSTM)
+        packed_src = torch.nn.utils.rnn.pack_padded_sequence(embedded, lengths, batch_first=True)
+
+        packed_output, final_hidden = self.lstm(packed_src)
+
+        # Unpack the packed sequence (after passing them to the LSTM)
+        enc_output, _ = torch.nn.utils.rnn.pad_packed_sequence(packed_output, batch_first=True)
+
+        enc_output = self.dropout(enc_output)
+
         # enc_output: (batch_size, max_src_len, hidden_size)
         # final_hidden: tuple with 2 tensors
         # each tensor is (num_layers * num_directions, batch_size, hidden_size)
-        # TODO: Uncomment the following line when you implement the forward pass
-        # return enc_output, final_hidden
+        return enc_output, final_hidden
 
 
 class Decoder(nn.Module):
@@ -165,6 +166,44 @@ class Decoder(nn.Module):
         if dec_state[0].shape[0] == 2:
             dec_state = reshape_state(dec_state)
 
+        # Embed the target sequence
+        embedded = self.embedding(tgt)
+
+        # Initialize the hidden state and cell state of the LSTM with the final
+        # hidden state and cell state of the encoder
+        hidden, cell = dec_state
+        dec_state = (hidden[-1], cell[-1])
+
+        # Initialize the outputs tensor and the LSTM input
+        outputs = torch.zeros((tgt.shape[0], tgt.shape[1], self.hidden_size), device=tgt.device)
+        lstm_input = embedded[:, 0, :]
+
+        # Iterate over the time steps of the target sequence
+        for t in range(tgt.shape[1]):
+            # Generate the input to the LSTM
+            lstm_input = torch.cat((lstm_input, dec_state[0]), dim=1)
+
+            # Pass the input to the LSTM and obtain the output and new hidden state and cell state
+            output, dec_state = self.lstm(lstm_input.unsqueeze(1), dec_state)
+
+            # Apply only in 3.2
+            # if self.attn is not None:
+            #     output = self.attn(
+            #         output,
+            #         encoder_outputs,
+            #         src_lengths,
+            #     )
+
+            # Generate the representation of the next target token
+            output = self.dropout(output)
+            output = self.linear(output)
+
+            # Save the output of the LSTM at the current time step
+            outputs[:, t, :] = output
+
+            # Set the input to the LSTM for the next time step
+            lstm_input = self.embedding(output.argmax(dim=-1))
+
         #############################################
         # TODO: Implement the forward pass of the decoder
         # Hints:
@@ -179,17 +218,7 @@ class Decoder(nn.Module):
         #         encoder_outputs,
         #         src_lengths,
         #     )
-        #############################################
-        raise NotImplementedError
-        #############################################
-        # END OF YOUR CODE
-        #############################################
-        # outputs: (batch_size, max_tgt_len, hidden_size)
-        # dec_state: tuple with 2 tensors
-        # each tensor is (num_layers, batch_size, hidden_size)
-        # TODO: Uncomment the following line when you implement the forward pass
-        # return outputs, dec_state
-
+        return outputs, dec_state
 
 class Seq2Seq(nn.Module):
     def __init__(
