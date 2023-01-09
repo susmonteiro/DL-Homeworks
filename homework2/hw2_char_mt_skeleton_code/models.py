@@ -198,45 +198,7 @@ class Decoder(nn.Module):
         embedded = self.embedding(tgt)
         embedded_dropout = self.dropout(embedded)
 
-            # Initialize the hidden state and cell state of the LSTM with the final
-        # hidden state and cell state of the encoder
-        hidden, cell = dec_state
-        dec_state = (hidden[-1], cell[-1])
-
-        # Initialize the hidden state and cell state of the LSTM with the final
-        # hidden state and cell state of the encoder
-        hidden, cell = dec_state
-        dec_state = (hidden[-1], cell[-1])
-
-        # Initialize the outputs tensor and the LSTM input
-        outputs = torch.zeros((tgt.shape[0], tgt.shape[1], self.hidden_size))
-        lstm_input = embedded_dropout[:, 0, :]
-
-        # Iterate over the time steps of the target sequence
-        for t in range(tgt.shape[1]):
-            # Generate the input to the LSTM
-            if t != 0:
-                lstm_input = self.embedding(output.argmax(dim=-1))
-            lstm_input = torch.cat((lstm_input, dec_state[0]), dim=1)
-
-            # Pass the input to the LSTM and obtain the output and new hidden state and cell state
-            output, dec_state = self.lstm(lstm_input.unsqueeze(0), dec_state)
-
-            # Apply only in 3.2
-            # if self.attn is not None:
-            #     output = self.attn(
-            #         output,
-            #         encoder_outputs,
-            #         src_lengths,
-            #     )
-
-            # Generate the representation of the next target token
-            # TODO dropout here?
-            output = self.dropout(output)
-            output = self.linear(output)
-
-            # Save the output of the LSTM at the current time step
-            outputs[:, t, :] = output
+        outputs, dec_state = self.lstm(embedded_dropout)
 
         #############################################
         # TODO: Implement the forward pass of the decoder
