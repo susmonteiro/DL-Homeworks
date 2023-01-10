@@ -199,6 +199,17 @@ class Decoder(nn.Module):
         embedded_dropout = self.dropout(embedded)
 
         outputs, dec_state = self.lstm(embedded_dropout)
+        # TODO dropout again?
+
+        # usar um iterador de jeito -> torch.split
+            # para cada x aplicar a lstm
+            # depois aplicar dropout
+            # colocar numa lista que guarda tudo
+            # a attention vai algures aqui no 3.2 -> no decoder é a única coisa que é necessário fazer
+            
+        # concatenar a lista dos outputs com um torch.cat numa das dimensões (perceber qual)
+        # o dec_state é o último output da lista que vem da lstm
+        
 
         #############################################
         # TODO: Implement the forward pass of the decoder
