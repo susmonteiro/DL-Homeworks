@@ -10,6 +10,7 @@ import torch.nn as nn
 from torch import optim
 import torch.nn.functional as F
 import torchvision
+import statistics
 from matplotlib import pyplot as plt
 import numpy as np
 
@@ -26,10 +27,11 @@ class CNN(nn.Module):
         https://pytorch.org/docs/stable/nn.html
         """
         super(CNN, self).__init__()
-        self.conv1 = nn.Conv2d(1, 8, kernel_size = 5, stride = 1)
+        self.conv1 = nn.Conv2d(1, 8, kernel_size = 5, stride = 1, padding = 2)
         self.conv2 = nn.Conv2d(8, 16, kernel_size = 3)
-        self.conv2_drop = dropout_prob
-        self.fc1 = nn.Linear(200, 600)     
+        self.conv2_drop = nn.Dropout(dropout_prob)
+        self.pooling = nn.MaxPool2d(2, stride=2)
+        self.fc1 = nn.Linear(576, 600)     
         self.fc2 = nn.Linear(600, 120)
         self.fc3 = nn.Linear(120, 10)
 
@@ -49,30 +51,37 @@ class CNN(nn.Module):
         forward pass -- this is enough for it to figure out how to do the
         backward pass.
         """
-        print(x.shape)
+        #print(x.shape)
+        x = x.view(8, 1, 28, 28)
         # Batch size = 8, images 28x28 =>
         #     x.shape = [8, 1, 28, 28]
         # Convolution with 5x5 filter without padding and 8 channels =>
-        #     x.shape = [8, 8, 24, 24] since 24 = 28 - 5 + 1
+        #     x.shape = [8, 8, 28, 28] since 28 = 28 - 5 + 4 + 1
         # Max pooling with stride of 2 =>
-        #     x.shape = [8, 8, 12, 12]
-        x = nn.MaxPool2d(F.relu(self.conv1(x)), 2)
-        # Convolution with 5x5 filter without padding and 8 channels =>
-        #     x.shape = [8, 16, 10, 10] since 10 = 12 - 3 + 1
+        #     x.shape = [8, 8, 14, 14]
+        x = self.pooling(F.relu(self.conv1(x)))
+        #print(x.shape)
+        # Convolution with 3x3 filter without padding and 16 channels =>
+        #     x.shape = [8, 16, 12, 12] since 10 = 14 - 3 + 1
         # Max pooling with stride of 2 =>
-        #     x.shape = [64, 8, 5, 5]
-        x = F.MaxPool2d(F.relu(self.conv2(x)), 2)
+        #     x.shape = [8, 16, 6, 6]
+        x = self.pooling(F.relu(self.conv2(x)))
+        #print(x.shape)
 
-        x = x.view(-1, 200)             #still have to change num_output_features
+        x = x.view(-1, 576)  
+        #print(x.shape)           
         # Reshape =>
-        #     x.shape = [64, 320]   
+        #     x.shape = [8, 200]   
         x = self.conv2_drop(F.relu(self.fc1(x)))
-        #x = F.dropout(x, training=self.training)
+        #print(x.shape)
         x = F.relu(self.fc2(x))
-        x = F.dropout(x, training=self.training)
-        x = self.fc2(x)
+        #print(x.shape)
+        x = self.fc3(x)
+        #print(x.shape)
         x = F.log_softmax(x, dim=1)
-        raise x
+        #print(x.shape)
+        #exit(0)
+        return x
 
 def train_batch(X, y, model, optimizer, criterion, **kwargs):
     """
@@ -179,7 +188,10 @@ def main():
         dataset, batch_size=opt.batch_size, shuffle=True)
     dev_X, dev_y = dataset.dev_X, dataset.dev_y
     test_X, test_y = dataset.test_X, dataset.test_y
-
+    dev_X = dev_X.view(1250, 8, 28, 28)
+    dev_y = dev_y.view(1250, 8)
+    test_X = test_X.view(1250, 8, 28, 28)
+    test_y = test_y.view(1250, 8)
     # initialize the model
     model = CNN(opt.dropout)
     
@@ -197,23 +209,29 @@ def main():
     # training loop
     epochs = np.arange(1, opt.epochs + 1)
     train_mean_losses = []
+    valid_acc = []
     valid_accs = []
+    final_accs = []
     train_losses = []
     for ii in epochs:
         print('Training epoch {}'.format(ii))
         for X_batch, y_batch in train_dataloader:
             loss = train_batch(
-                X_batch.view(64, 1, 28, 28), y_batch, model, optimizer, criterion)
+                X_batch, y_batch, model, optimizer, criterion)
             train_losses.append(loss)
 
         mean_loss = torch.tensor(train_losses).mean().item()
         print('Training loss: %.4f' % (mean_loss))
-
+        #print(dev_X.shape)
         train_mean_losses.append(mean_loss)
-        valid_accs.append(evaluate(model, dev_X, dev_y))
+        for dev in zip(dev_X, dev_y):
+            #print(dev[0].shape)
+            #print(dev[1].shape)
+            valid_acc.append(evaluate(model, dev[0], dev[1]))
         print('Valid acc: %.4f' % (valid_accs[-1]))
-
-    print('Final Test acc: %.4f' % (evaluate(model, test_X, test_y)))
+        for test in zip(test_X, test_y):
+            final_accs.append(evaluate(model, test[0], test[1]))
+    print('Final Test acc: %.4f' % (final_accs[-1]))
     # plot
     config = "{}-{}-{}-{}".format(opt.learning_rate, opt.dropout, opt.l2_decay, opt.optimizer)
 
