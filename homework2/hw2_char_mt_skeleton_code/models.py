@@ -105,20 +105,45 @@ class Encoder(nn.Module):
         # Embed the source sequence
         embedded = self.embedding(src)
 
+        # TODO dropout here?
+        embedded_dropout = self.dropout(embedded)
         # Pack the padded sequences (before passing them to the LSTM)
-        packed_src = torch.nn.utils.rnn.pack_padded_sequence(embedded, lengths, batch_first=True)
+        # lengths, indices = lengths.sort(descending=True)
+        # src = src[indices]
+        packed_src = pack(embedded_dropout, lengths, batch_first=True, enforce_sorted=False)
 
         packed_output, final_hidden = self.lstm(packed_src)
 
-        # Unpack the packed sequence (after passing them to the LSTM)
-        enc_output, _ = torch.nn.utils.rnn.pad_packed_sequence(packed_output, batch_first=True)
+        # Unpack the packed sequence (after passing them to the LSTM)  
+        enc_output, _ = unpack(packed_output, batch_first=True)
 
-        enc_output = self.dropout(enc_output)
+        final_hidden = self._reshape_hidden(final_hidden)
 
         # enc_output: (batch_size, max_src_len, hidden_size)
         # final_hidden: tuple with 2 tensors
         # each tensor is (num_layers * num_directions, batch_size, hidden_size)
+        print(enc_output.shape)
+        print(final_hidden[0].shape)
+        print(final_hidden[1].shape)
         return enc_output, final_hidden
+
+    def _merge_tensor(self, state_tensor):
+        forward_states = state_tensor[::2]
+        backward_states = state_tensor[1::2]
+        return torch.cat([forward_states, backward_states], 2)
+
+    def _reshape_hidden(self, hidden):
+        """
+        hidden:
+            num_layers * num_directions x batch x self.hidden_size // 2
+            or a tuple of these
+        returns:
+            num_layers
+        """
+        if isinstance(hidden, tuple):
+            return tuple(self._merge_tensor(h) for h in hidden)
+        else:
+            return self._merge_tensor(hidden)
 
 
 class Decoder(nn.Module):
@@ -151,7 +176,7 @@ class Decoder(nn.Module):
     def forward(
         self,
         tgt,
-        dec_state,
+        dec_state,  # should be the final hidden state from the Encoder
         encoder_outputs,
         src_lengths,
     ):
@@ -163,46 +188,28 @@ class Decoder(nn.Module):
         # bidirectional encoder outputs are concatenated, so we may need to
         # reshape the decoder states to be of size (num_layers, batch_size, 2*hidden_size)
         # if they are of size (num_layers*num_directions, batch_size, hidden_size)
+
+        # initially each tensor has dimensions [2, 64, 64]
+        # after reshaping, each tensor has dimensions [1, 64, 128]
         if dec_state[0].shape[0] == 2:
             dec_state = reshape_state(dec_state)
 
         # Embed the target sequence
         embedded = self.embedding(tgt)
+        embedded_dropout = self.dropout(embedded)
 
-        # Initialize the hidden state and cell state of the LSTM with the final
-        # hidden state and cell state of the encoder
-        hidden, cell = dec_state
-        dec_state = (hidden[-1], cell[-1])
+        outputs, dec_state = self.lstm(embedded_dropout)
+        # TODO dropout again?
 
-        # Initialize the outputs tensor and the LSTM input
-        outputs = torch.zeros((tgt.shape[0], tgt.shape[1], self.hidden_size), device=tgt.device)
-        lstm_input = embedded[:, 0, :]
-
-        # Iterate over the time steps of the target sequence
-        for t in range(tgt.shape[1]):
-            # Generate the input to the LSTM
-            lstm_input = torch.cat((lstm_input, dec_state[0]), dim=1)
-
-            # Pass the input to the LSTM and obtain the output and new hidden state and cell state
-            output, dec_state = self.lstm(lstm_input.unsqueeze(1), dec_state)
-
-            # Apply only in 3.2
-            # if self.attn is not None:
-            #     output = self.attn(
-            #         output,
-            #         encoder_outputs,
-            #         src_lengths,
-            #     )
-
-            # Generate the representation of the next target token
-            output = self.dropout(output)
-            output = self.linear(output)
-
-            # Save the output of the LSTM at the current time step
-            outputs[:, t, :] = output
-
-            # Set the input to the LSTM for the next time step
-            lstm_input = self.embedding(output.argmax(dim=-1))
+        # usar um iterador de jeito -> torch.split
+            # para cada x aplicar a lstm
+            # depois aplicar dropout
+            # colocar numa lista que guarda tudo
+            # a attention vai algures aqui no 3.2 -> no decoder é a única coisa que é necessário fazer
+            
+        # concatenar a lista dos outputs com um torch.cat numa das dimensões (perceber qual)
+        # o dec_state é o último output da lista que vem da lstm
+        
 
         #############################################
         # TODO: Implement the forward pass of the decoder
