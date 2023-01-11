@@ -52,7 +52,7 @@ class CNN(nn.Module):
         backward pass.
         """
         #print(x.shape)
-        x = x.view(8, 1, 28, 28)
+        x = x.view(x.shape[0], 1, 28, 28)
         # Batch size = 8, images 28x28 =>
         #     x.shape = [8, 1, 28, 28]
         # Convolution with 5x5 filter without padding and 8 channels =>
@@ -71,7 +71,7 @@ class CNN(nn.Module):
         x = x.view(-1, 576)  
         #print(x.shape)           
         # Reshape =>
-        #     x.shape = [8, 200]   
+        #     x.shape = [8, 576]   
         x = self.conv2_drop(F.relu(self.fc1(x)))
         #print(x.shape)
         x = F.relu(self.fc2(x))
@@ -80,7 +80,6 @@ class CNN(nn.Module):
         #print(x.shape)
         x = F.log_softmax(x, dim=1)
         #print(x.shape)
-        #exit(0)
         return x
 
 def train_batch(X, y, model, optimizer, criterion, **kwargs):
@@ -188,10 +187,10 @@ def main():
         dataset, batch_size=opt.batch_size, shuffle=True)
     dev_X, dev_y = dataset.dev_X, dataset.dev_y
     test_X, test_y = dataset.test_X, dataset.test_y
-    dev_X = dev_X.view(1250, 8, 28, 28)
-    dev_y = dev_y.view(1250, 8)
-    test_X = test_X.view(1250, 8, 28, 28)
-    test_y = test_y.view(1250, 8)
+    #dev_X = dev_X.view(1250, 8, 28, 28)
+    #dev_y = dev_y.view(1250, 8)
+    #test_X = test_X.view(1250, 8, 28, 28)
+    #test_y = test_y.view(1250, 8)
     # initialize the model
     model = CNN(opt.dropout)
     
@@ -209,9 +208,7 @@ def main():
     # training loop
     epochs = np.arange(1, opt.epochs + 1)
     train_mean_losses = []
-    valid_acc = []
     valid_accs = []
-    final_accs = []
     train_losses = []
     for ii in epochs:
         print('Training epoch {}'.format(ii))
@@ -224,14 +221,9 @@ def main():
         print('Training loss: %.4f' % (mean_loss))
         #print(dev_X.shape)
         train_mean_losses.append(mean_loss)
-        for dev in zip(dev_X, dev_y):
-            #print(dev[0].shape)
-            #print(dev[1].shape)
-            valid_acc.append(evaluate(model, dev[0], dev[1]))
+        valid_accs.append(evaluate(model, dev_X, dev_y))
         print('Valid acc: %.4f' % (valid_accs[-1]))
-        for test in zip(test_X, test_y):
-            final_accs.append(evaluate(model, test[0], test[1]))
-    print('Final Test acc: %.4f' % (final_accs[-1]))
+    print('Final Test acc: %.4f' % (evaluate(model, test_X, test_y)))
     # plot
     config = "{}-{}-{}-{}".format(opt.learning_rate, opt.dropout, opt.l2_decay, opt.optimizer)
 
