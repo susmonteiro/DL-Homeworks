@@ -116,15 +116,14 @@ class Encoder(nn.Module):
 
         # Unpack the packed sequence (after passing them to the LSTM)  
         enc_output, _ = unpack(packed_output, batch_first=True)
+        enc_output = self.dropout(enc_output)
+
 
         final_hidden = self._reshape_hidden(final_hidden)
 
         # enc_output: (batch_size, max_src_len, hidden_size)
         # final_hidden: tuple with 2 tensors
         # each tensor is (num_layers * num_directions, batch_size, hidden_size)
-        print(enc_output.shape)
-        print(final_hidden[0].shape)
-        print(final_hidden[1].shape)
         return enc_output, final_hidden
 
     def _merge_tensor(self, state_tensor):
@@ -175,19 +174,18 @@ class Decoder(nn.Module):
 
     def forward(
         self,
-        tgt,
-        dec_state,  # should be the final hidden state from the Encoder
-        encoder_outputs,
-        src_lengths,
+        tgt,                # (batch_size, max_tgt_len)
+        dec_state,          # should be the final hidden state from the Encoder
+        encoder_outputs,    # (batch_size, max_src_len, hidden_size)
+        src_lengths,        # (batch_size)
     ):
-        # tgt: (batch_size, max_tgt_len)
+
         # dec_state: tuple with 2 tensors
         # each tensor is (num_layers * num_directions, batch_size, hidden_size)
-        # encoder_outputs: (batch_size, max_src_len, hidden_size)
-        # src_lengths: (batch_size)
+
         # bidirectional encoder outputs are concatenated, so we may need to
         # reshape the decoder states to be of size (num_layers, batch_size, 2*hidden_size)
-        # if they are of size (num_layers*num_directions, batch_size, hidden_size)
+        # if they are of size (num_layers*num_directions, batch_size, hidden_size)        
 
         # initially each tensor has dimensions [2, 64, 64]
         # after reshaping, each tensor has dimensions [1, 64, 128]
@@ -196,10 +194,54 @@ class Decoder(nn.Module):
 
         # Embed the target sequence
         embedded = self.embedding(tgt)
+        # print(embedded.shape)
+        # print(encoder_outputs.shape)
+    
         embedded_dropout = self.dropout(embedded)
 
-        outputs, dec_state = self.lstm(embedded_dropout)
+        # outputs, dec_state = self.lstm(embedded_dropout)
         # TODO dropout again?
+        # embedded_dropout_shape = embedded_dropout
+        # embedded_dropout = embedded_dropout.reshape(embedded_dropout[0], embedded_dropout[2], embedded_dropout[1])
+        # print(embedded_dropout.shape)
+        outputs, dec_state = self.lstm(embedded_dropout, dec_state)
+
+        # ? 1344 = 64 * 21
+        # ? 1280 = 64 * 20
+
+        outputs = []
+
+        for t in torch.split(embedded_dropout, 1, dim=1):
+            # print("hidden t: " + str(t.shape))
+            output, dec_state = self.lstm(t, dec_state)
+            output = self.dropout(output)
+            outputs.append(output)
+
+        # print(outputs[0].shape)
+
+        outputs = torch.cat(outputs[:-1], dim=1)
+
+        # print(outputs.shape)
+
+
+
+        # outputs = []
+        
+        # for t in torch.split(embedded_dropout, 1, dim=2):
+        #     print("T: " + str(t.shape))
+        #     x = embedded_dropout[:, t, :]
+        #     output, dec_state = self.lstm(embedded_dropout, t)
+        #     output = self.dropout(output)
+        #     outputs.append(output)
+
+        #     if self.attn is not None:
+        #         output = self.attn(
+        #             output,
+        #             encoder_outputs,
+        #             src_lengths,
+        #         )
+        
+        # outputs = torch.cat(outputs, dim=1)
 
         # usar um iterador de jeito -> torch.split
             # para cada x aplicar a lstm
