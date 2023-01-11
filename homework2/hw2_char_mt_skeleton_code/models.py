@@ -30,7 +30,7 @@ class Attention(nn.Module):
         src_lengths,
     ):
         # query: (batch_size, 1, hidden_dim)
-        # encoder_outputs: (batch_size, max_src_len, hidden_dim)
+        # encoder_outputs: (batch_size, max_src_len, hidden_dim) -> hidden
         # src_lengths: (batch_size)
         # we will need to use this mask to assign float("-inf") in the attention scores
         # of the padding tokens (such that the output of the softmax is 0 in those positions)
@@ -39,6 +39,11 @@ class Attention(nn.Module):
         # the "~" is the elementwise NOT operator
         src_seq_mask = ~self.sequence_mask(src_lengths)
         #############################################
+        print(self.linear_in)
+        z = self.linear_in(query)
+        scores = torch.bmm(z, encoder_outputs)
+        # z = torch.bmm(query, self.linear_in)
+
         # TODO: Implement the forward pass of the attention layer
         # Hints:
         # - Use torch.bmm to do the batch matrix multiplication
@@ -189,59 +194,37 @@ class Decoder(nn.Module):
 
         # initially each tensor has dimensions [2, 64, 64]
         # after reshaping, each tensor has dimensions [1, 64, 128]
+
         if dec_state[0].shape[0] == 2:
             dec_state = reshape_state(dec_state)
 
+        tgt_old = tgt.shape # TODO delete me
+        if (tgt.size(1) > 1):
+            tgt = tgt[:, :-1] 
+        # print(tgt_old, tgt.shape)
+        # print(tgt.shape)
+
         # Embed the target sequence
-        embedded = self.embedding(tgt)
-        # print(embedded.shape)
-        # print(encoder_outputs.shape)
-    
+        embedded = self.embedding(tgt)    
         embedded_dropout = self.dropout(embedded)
-
-        # outputs, dec_state = self.lstm(embedded_dropout)
-        # TODO dropout again?
-        # embedded_dropout_shape = embedded_dropout
-        # embedded_dropout = embedded_dropout.reshape(embedded_dropout[0], embedded_dropout[2], embedded_dropout[1])
-        # print(embedded_dropout.shape)
-        outputs, dec_state = self.lstm(embedded_dropout, dec_state)
-
-        # ? 1344 = 64 * 21
-        # ? 1280 = 64 * 20
 
         outputs = []
 
         for t in torch.split(embedded_dropout, 1, dim=1):
-            # print("hidden t: " + str(t.shape))
             output, dec_state = self.lstm(t, dec_state)
+
+            if self.attn is not None:
+                output = self.attn(
+                    output,
+                    encoder_outputs,
+                    src_lengths,
+                )
+            
             output = self.dropout(output)
             outputs.append(output)
 
-        # print(outputs[0].shape)
 
-        outputs = torch.cat(outputs[:-1], dim=1)
-
-        # print(outputs.shape)
-
-
-
-        # outputs = []
-        
-        # for t in torch.split(embedded_dropout, 1, dim=2):
-        #     print("T: " + str(t.shape))
-        #     x = embedded_dropout[:, t, :]
-        #     output, dec_state = self.lstm(embedded_dropout, t)
-        #     output = self.dropout(output)
-        #     outputs.append(output)
-
-        #     if self.attn is not None:
-        #         output = self.attn(
-        #             output,
-        #             encoder_outputs,
-        #             src_lengths,
-        #         )
-        
-        # outputs = torch.cat(outputs, dim=1)
+        outputs = torch.cat(outputs, dim=1)
 
         # usar um iterador de jeito -> torch.split
             # para cada x aplicar a lstm
