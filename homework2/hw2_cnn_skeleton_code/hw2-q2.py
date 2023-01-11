@@ -217,7 +217,7 @@ def main():
         print('Training epoch {}'.format(ii))
         for X_batch, y_batch in train_dataloader:
             loss = train_batch(
-                X_batch.view(64, 1, 28, 28), y_batch, model, optimizer, criterion)
+                X_batch, y_batch, model, optimizer, criterion)
             train_losses.append(loss)
 
         mean_loss = torch.tensor(train_losses).mean().item()
