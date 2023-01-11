@@ -59,13 +59,13 @@ class CNN(nn.Module):
         #     x.shape = [8, 8, 28, 28] since 28 = 28 - 5 + 4 + 1
         # Max pooling with stride of 2 =>
         #     x.shape = [8, 8, 14, 14]
-        x = self.pooling(F.relu(self.conv1(x)))
+        x = F.relu(self.pooling(self.conv1(x)))
         #print(x.shape)
         # Convolution with 3x3 filter without padding and 16 channels =>
         #     x.shape = [8, 16, 12, 12] since 10 = 14 - 3 + 1
         # Max pooling with stride of 2 =>
         #     x.shape = [8, 16, 6, 6]
-        x = self.pooling(F.relu(self.conv2(x)))
+        x = F.relu(self.pooling(self.conv2(x)))
         #print(x.shape)
 
         x = x.view(-1, 576)  
