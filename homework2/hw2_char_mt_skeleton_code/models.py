@@ -21,7 +21,7 @@ class Attention(nn.Module):
         super(Attention, self).__init__()
         "Luong et al. general attention (https://arxiv.org/pdf/1508.04025.pdf)"
         self.linear_in = nn.Linear(hidden_size, hidden_size, bias=False)
-        self.linear_out = nn.Linear(hidden_size * 2, hidden_size)
+        self.linear_out = nn.Linear(hidden_size * 2, hidden_size)   # 256, 128
 
     def forward(
         self,
@@ -30,7 +30,7 @@ class Attention(nn.Module):
         src_lengths,
     ):
         # query: (batch_size, 1, hidden_dim)
-        # encoder_outputs: (batch_size, max_src_len, hidden_dim) -> hidden
+        # encoder_outputs: (batch_size, max_src_len, hidden_dim)
         # src_lengths: (batch_size)
         # we will need to use this mask to assign float("-inf") in the attention scores
         # of the padding tokens (such that the output of the softmax is 0 in those positions)
@@ -39,31 +39,24 @@ class Attention(nn.Module):
         # the "~" is the elementwise NOT operator
         src_seq_mask = ~self.sequence_mask(src_lengths)
         #############################################
-        print(self.linear_in)
         z = self.linear_in(query)
-        scores = torch.bmm(z, encoder_outputs)
+        scores = torch.bmm(z, encoder_outputs.transpose(1, 2))
+        scores = torch.masked_fill(scores, src_seq_mask, float("-inf"))
         alignment = torch.softmax(scores, 2)
         context = torch.bmm(alignment, encoder_outputs)
-        output = self.linear_out(torch.cat([query, context], dim=2))
-        return output
+        q_c = torch.cat([query, context], dim=1)
+        output = self.linear_out(q_c)  # ! error 
+        attn_out = torch.tanh(output)
 
-        # z = torch.bmm(query, self.linear_in)
-
-        # TODO: Implement the forward pass of the attention layer
         # Hints:
         # - Use torch.bmm to do the batch matrix multiplication
         #    (it does matrix multiplication for each sample in the batch)
         # - Use torch.softmax to do the softmax
         # - Use torch.tanh to do the tanh
         # - Use torch.masked_fill to do the masking of the padding tokens
-        #############################################
-        raise NotImplementedError
-        #############################################
-        # END OF YOUR CODE
-        #############################################
         # attn_out: (batch_size, 1, hidden_size)
-        # TODO: Uncomment the following line when you implement the forward pass
-        # return attn_out
+
+        return attn_out
 
     def sequence_mask(self, lengths):
         """
