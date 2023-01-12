@@ -51,7 +51,6 @@ class CNN(nn.Module):
         forward pass -- this is enough for it to figure out how to do the
         backward pass.
         """
-        #print(x.shape)
         x = x.view(x.shape[0], 1, 28, 28)
         # Batch size = 8, images 28x28 =>
         #     x.shape = [8, 1, 28, 28]
@@ -60,26 +59,18 @@ class CNN(nn.Module):
         # Max pooling with stride of 2 =>
         #     x.shape = [8, 8, 14, 14]
         x = F.relu(self.pooling(self.conv1(x)))
-        #print(x.shape)
         # Convolution with 3x3 filter without padding and 16 channels =>
         #     x.shape = [8, 16, 12, 12] since 10 = 14 - 3 + 1
         # Max pooling with stride of 2 =>
         #     x.shape = [8, 16, 6, 6]
         x = F.relu(self.pooling(self.conv2(x)))
-        #print(x.shape)
-
-        x = x.view(-1, 576)  
-        #print(x.shape)           
+        x = x.view(-1, 576)           
         # Reshape =>
         #     x.shape = [8, 576]   
         x = self.conv2_drop(F.relu(self.fc1(x)))
-        #print(x.shape)
         x = F.relu(self.fc2(x))
-        #print(x.shape)
         x = self.fc3(x)
-        #print(x.shape)
         x = F.log_softmax(x, dim=1)
-        #print(x.shape)
         return x
 
 def train_batch(X, y, model, optimizer, criterion, **kwargs):
@@ -187,10 +178,6 @@ def main():
         dataset, batch_size=opt.batch_size, shuffle=True)
     dev_X, dev_y = dataset.dev_X, dataset.dev_y
     test_X, test_y = dataset.test_X, dataset.test_y
-    #dev_X = dev_X.view(1250, 8, 28, 28)
-    #dev_y = dev_y.view(1250, 8)
-    #test_X = test_X.view(1250, 8, 28, 28)
-    #test_y = test_y.view(1250, 8)
     # initialize the model
     model = CNN(opt.dropout)
     
@@ -219,7 +206,6 @@ def main():
 
         mean_loss = torch.tensor(train_losses).mean().item()
         print('Training loss: %.4f' % (mean_loss))
-        #print(dev_X.shape)
         train_mean_losses.append(mean_loss)
         valid_accs.append(evaluate(model, dev_X, dev_y))
         print('Valid acc: %.4f' % (valid_accs[-1]))

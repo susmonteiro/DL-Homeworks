@@ -42,6 +42,11 @@ class Attention(nn.Module):
         print(self.linear_in)
         z = self.linear_in(query)
         scores = torch.bmm(z, encoder_outputs)
+        alignment = torch.softmax(scores, 2)
+        context = torch.bmm(alignment, encoder_outputs)
+        output = self.linear_out(torch.cat([query, context], dim=2))
+        return output
+
         # z = torch.bmm(query, self.linear_in)
 
         # TODO: Implement the forward pass of the attention layer
