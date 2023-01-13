@@ -29,7 +29,7 @@ class CNN(nn.Module):
         super(CNN, self).__init__()
         self.conv1 = nn.Conv2d(1, 8, kernel_size = 5, stride = 1, padding = 2)
         self.conv2 = nn.Conv2d(8, 16, kernel_size = 3)
-        self.conv2_drop = nn.Dropout(dropout_prob)
+        self.conv2_drop = nn.Dropout(0.3)
         self.pooling = nn.MaxPool2d(2, stride=2)
         self.fc1 = nn.Linear(576, 600)     
         self.fc2 = nn.Linear(600, 120)
