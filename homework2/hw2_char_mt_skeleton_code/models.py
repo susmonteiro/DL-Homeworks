@@ -38,13 +38,20 @@ class Attention(nn.Module):
         # src_seq_mask: (batch_size, max_src_len)
         # the "~" is the elementwise NOT operator
         src_seq_mask = ~self.sequence_mask(src_lengths)
+        #print("Mask " + str(src_seq_mask.shape))
         #############################################
         z = self.linear_in(query)
         scores = torch.bmm(z, encoder_outputs.transpose(1, 2))
-        scores = torch.masked_fill(scores, src_seq_mask, float("-inf"))
+        #print("Scores " + str(scores.shape))
+        scores = torch.masked_fill(scores, src_seq_mask.unsqueeze(1), float("-inf"))
+        #print("Masked scores " + str(scores.shape))
+        #print(scores.shape)
         alignment = torch.softmax(scores, 2)
+        #print("Alignment " + str(alignment.shape))
         context = torch.bmm(alignment, encoder_outputs)
-        q_c = torch.cat([query, context], dim=1)
+        #print("Context " + str(context.shape))
+        q_c = torch.cat([query, context], dim=2)
+        #print("Concat " + str(q_c.shape))
         output = self.linear_out(q_c)  # ! error 
         attn_out = torch.tanh(output)
 
