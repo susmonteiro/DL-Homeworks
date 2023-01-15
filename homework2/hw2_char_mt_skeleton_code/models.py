@@ -38,21 +38,13 @@ class Attention(nn.Module):
         # src_seq_mask: (batch_size, max_src_len)
         # the "~" is the elementwise NOT operator
         src_seq_mask = ~self.sequence_mask(src_lengths)
-        #print("Mask " + str(src_seq_mask.shape))
-        #############################################
         z = self.linear_in(query)
         scores = torch.bmm(z, encoder_outputs.transpose(1, 2))
-        #print("Scores " + str(scores.shape))
         scores = torch.masked_fill(scores, src_seq_mask.unsqueeze(1), float("-inf"))
-        #print("Masked scores " + str(scores.shape))
-        #print(scores.shape)
         alignment = torch.softmax(scores, 2)
-        #print("Alignment " + str(alignment.shape))
         context = torch.bmm(alignment, encoder_outputs)
-        #print("Context " + str(context.shape))
         q_c = torch.cat([query, context], dim=2)
-        #print("Concat " + str(q_c.shape))
-        output = self.linear_out(q_c)  # ! error 
+        output = self.linear_out(q_c)
         attn_out = torch.tanh(output)
 
         # Hints:
@@ -206,9 +198,7 @@ class Decoder(nn.Module):
         tgt_old = tgt.shape # TODO delete me
         if (tgt.size(1) > 1):
             tgt = tgt[:, :-1] 
-        # print(tgt_old, tgt.shape)
-        # print(tgt.shape)
-
+     
         # Embed the target sequence
         embedded = self.embedding(tgt)    
         embedded_dropout = self.dropout(embedded)
@@ -230,31 +220,6 @@ class Decoder(nn.Module):
 
 
         outputs = torch.cat(outputs, dim=1)
-
-        # usar um iterador de jeito -> torch.split
-            # para cada x aplicar a lstm
-            # depois aplicar dropout
-            # colocar numa lista que guarda tudo
-            # a attention vai algures aqui no 3.2 -> no decoder é a única coisa que é necessário fazer
-            
-        # concatenar a lista dos outputs com um torch.cat numa das dimensões (perceber qual)
-        # o dec_state é o último output da lista que vem da lstm
-        
-
-        #############################################
-        # TODO: Implement the forward pass of the decoder
-        # Hints:
-        # - the input to the decoder is the previous target token,
-        #   and the output is the next target token
-        # - New token representations should be generated one at a time, given
-        #   the previous token representation and the previous decoder state
-        # - Add this somewhere in the decoder loop when you implement the attention mechanism in 3.2:
-        # if self.attn is not None:
-        #     output = self.attn(
-        #         output,
-        #         encoder_outputs,
-        #         src_lengths,
-        #     )
         return outputs, dec_state
 
 class Seq2Seq(nn.Module):
